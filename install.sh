@@ -64,10 +64,12 @@ fi
 
 mkdir -p "$INSTALL_DIR"
 
-# Download release binary
+# Download release binary and checksums
 DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${ASSET_NAME}"
+CHECKSUM_URL="https://github.com/${REPO}/releases/latest/download/sha256sum.txt"
 TMP_FILE="$(mktemp "${TMPDIR:-/tmp}/cairn.XXXXXX")"
-trap 'rm -f "$TMP_FILE"' EXIT
+TMP_SUMS="$(mktemp "${TMPDIR:-/tmp}/cairn-sums.XXXXXX")"
+trap 'rm -f "$TMP_FILE" "$TMP_SUMS"' EXIT
 
 echo "Downloading Cairn Code from ${DOWNLOAD_URL}..."
 if ! curl -fsSL "$DOWNLOAD_URL" -o "$TMP_FILE"; then
@@ -77,11 +79,49 @@ if ! curl -fsSL "$DOWNLOAD_URL" -o "$TMP_FILE"; then
     fi
     exit 1
 fi
+
+echo "Downloading checksums from ${CHECKSUM_URL}..."
+if ! curl -fsSL "$CHECKSUM_URL" -o "$TMP_SUMS"; then
+    echo "Error: Failed to download sha256sum.txt from ${CHECKSUM_URL}." >&2
+    echo "Refusing to install an unverified binary." >&2
+    exit 1
+fi
+
+# Verify the binary against the published checksum before installing
+echo "Verifying checksum..."
+EXPECTED="$(grep " ${ASSET_NAME}$" "$TMP_SUMS" | awk '{print $1}')"
+if [ -z "$EXPECTED" ]; then
+    echo "Error: No checksum found for ${ASSET_NAME} in sha256sum.txt." >&2
+    echo "Refusing to install an unverified binary." >&2
+    exit 1
+fi
+
+if command -v sha256sum >/dev/null 2>&1; then
+    ACTUAL="$(sha256sum "$TMP_FILE" | awk '{print $1}')"
+elif command -v shasum >/dev/null 2>&1; then
+    ACTUAL="$(shasum -a 256 "$TMP_FILE" | awk '{print $1}')"
+else
+    echo "Error: Neither sha256sum nor shasum is available to verify the download." >&2
+    echo "Refusing to install an unverified binary." >&2
+    exit 1
+fi
+
+if [ "$ACTUAL" != "$EXPECTED" ]; then
+    echo "Error: Checksum mismatch for ${ASSET_NAME}." >&2
+    echo "  Expected: ${EXPECTED}" >&2
+    echo "  Actual:   ${ACTUAL}" >&2
+    echo "The download may be corrupted or tampered with. Aborting." >&2
+    exit 1
+fi
+echo "Checksum verified."
 chmod +x "$TMP_FILE"
 
 DEST="${INSTALL_DIR}/${BINARY_NAME}"
 mv -f "$TMP_FILE" "$DEST"
 trap - EXIT
+
+# Clean up the checksums file
+rm -f "$TMP_SUMS"
 
 echo "Installed Cairn Code to ${DEST}"
 
