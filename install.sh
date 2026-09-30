@@ -53,6 +53,32 @@ if ! command -v curl >/dev/null 2>&1; then
     exit 1
 fi
 
+# Resolve "latest" to a pinned version tag before downloading anything.
+# Fetching the binary and the checksum file from two separate "latest" URLs
+# is a TOCTOU race: if a new release is published between the two downloads,
+# the checksum will not match the binary and the install fails. Pinning both
+# downloads to the same immutable release tag eliminates that window.
+echo "Resolving latest release version..."
+if ! RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest")"; then
+    echo "Error: Failed to resolve the latest release version from the GitHub API." >&2
+    exit 1
+fi
+TAG="$(printf '%s\n' "$RELEASE_JSON" | sed -n 's/^[[:space:]]*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p')"
+if [ -z "$TAG" ]; then
+    echo "Error: Could not parse a release tag from the GitHub API response." >&2
+    echo "Refusing to install an unverified binary." >&2
+    exit 1
+fi
+# The tag is interpolated into download URLs below; reject anything that
+# does not look like a version tag.
+case "$TAG" in
+    *[!A-Za-z0-9._-]*)
+        echo "Error: Refusing to use unexpected release tag '${TAG}'." >&2
+        exit 1
+        ;;
+esac
+echo "Latest release is ${TAG}."
+
 # Determine install directory
 if [ -n "${CAIRN_INSTALL_DIR:-}" ]; then
     INSTALL_DIR="$CAIRN_INSTALL_DIR"
@@ -64,9 +90,9 @@ fi
 
 mkdir -p "$INSTALL_DIR"
 
-# Download release binary and checksums
-DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${ASSET_NAME}"
-CHECKSUM_URL="https://github.com/${REPO}/releases/latest/download/sha256sum.txt"
+# Download release binary and checksums, both pinned to the resolved tag
+DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/${ASSET_NAME}"
+CHECKSUM_URL="https://github.com/${REPO}/releases/download/${TAG}/sha256sum.txt"
 TMP_FILE="$(mktemp "${TMPDIR:-/tmp}/cairn.XXXXXX")"
 TMP_SUMS="$(mktemp "${TMPDIR:-/tmp}/cairn-sums.XXXXXX")"
 trap 'rm -f "$TMP_FILE" "$TMP_SUMS"' EXIT
@@ -75,7 +101,7 @@ echo "Downloading Cairn Code from ${DOWNLOAD_URL}..."
 if ! curl -fsSL "$DOWNLOAD_URL" -o "$TMP_FILE"; then
     echo "Error: Failed to download ${ASSET_NAME} from ${DOWNLOAD_URL}." >&2
     if [ "$OS" = "Darwin" ]; then
-        echo "macOS release binaries may not be published yet for the latest release." >&2
+        echo "macOS release binaries may not be published yet for release ${TAG}." >&2
     fi
     exit 1
 fi
