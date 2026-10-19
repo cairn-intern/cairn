@@ -1,15 +1,16 @@
 # Changelog
 
-## 0.3.3
+## 0.3.4
 
 - Windows (x86_64), macOS (Apple Silicon & Intel) and Linux (x86_64 & ARM64) release binaries. This is the first release with a Windows binary.
 - `/init` writes or updates the project's `CAIRN.md`, and Cairn loads that file as project instructions in later sessions.
 - Next prompt suggestions: when a turn ends, Cairn suggests a likely next prompt as ghost text in the composer. The `next_steps` setting controls both the suggestion and the recap's Next line, and declining a question picker skips the recap and the suggestion for that turn.
 - Screenshots get a dedicated tool and finer consent: approving an app covers captures of that app, and the capture prompt can allow screen capture for the rest of the session. Full-screen and free-region captures still ask every time.
+- Security: before Cairn first works in a repository, it checks that repository's own git settings for entries that would run commands of their own (a custom monitor program, hooks path, or ssh command, for example). If any are present, a permission prompt names them before anything runs there, and changing a repository's git settings file needs its own separate approval.
 - Recaps can be turned off in `/config`.
 - A connection dropped mid-stream is retried instead of failing the turn, dead MCP servers are marked as errors and dropped, and one step's combined tool output is capped so a single noisy command cannot flood the context.
 - The xAI provider is now SpaceXSI (`x-si`), and an xAI sign-in that yields no token falls back to a configured API key instead of presenting an empty model list.
-- Polish: diffs render in a box, status notices fade in and out, pickers are keyboard only apart from the model picker's small-models chip, the provider picker lists the current provider first, the compaction divider shows how much was saved, resuming a huge session shows the splash while it loads, and pasted-image refusals appear as brief status notices instead of errors.
+- Polish: diffs render in a box, status notices fade in and out, an unknown slash command shows as a brief status notice instead of an error block, pickers are keyboard only apart from the model picker's small-models chip, the provider picker lists the current provider first, the compaction divider shows how much was saved, resuming a huge session shows the splash while it loads, and pasted-image refusals appear as brief status notices instead of errors.
 
 Verify downloads against `sha256sum.txt`.
 
