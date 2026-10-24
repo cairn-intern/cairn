@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.5
+
+- Fixed the installer: a warning message in `install.sh` used backticks inside a double-quoted string, so the shell ran the quoted command (`cargo install --path .` in the caller's current folder) while printing the warning, before any prompt. Anyone with a `cairn` or `cairn-runtime` binary already in `~/.cargo/bin` hit it, including people with the unrelated crates.io `cairn` crate. The message now prints literally. Update by re-running the install one-liner.
+
 ## 0.3.4
 
 - Windows (x86_64), macOS (Apple Silicon & Intel) and Linux (x86_64 & ARM64) release binaries. This is the first release with a Windows binary.
