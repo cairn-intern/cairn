@@ -95,7 +95,7 @@ if [ -n "$DEV_BINARIES" ]; then
     echo "installed in your PATH:" >&2
     printf '%s' "$DEV_BINARIES" >&2
     echo "Please update through git and cargo instead: pull your cairn-runtime and" >&2
-    echo "cairn-code checkouts and rebuild them with `cargo install --path .`." >&2
+    echo 'cairn-code checkouts and rebuild them with `cargo install --path .`.' >&2
     echo "The release and development builds share the cairn name, so with both" >&2
     echo "installed, whichever directory comes first in your PATH silently wins and" >&2
     echo "you end up running the other build without knowing it." >&2
